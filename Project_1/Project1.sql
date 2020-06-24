@@ -61,6 +61,16 @@ ORDER BY year) t1
 
 -- d. What was the percent change in forest area of the world between 1990 and 2016?
 
+SELECT t1.sum_area, t1.year, LAG(t1.sum_area) OVER ( ORDER BY t1.year) lag, 
+(LAG(t1.sum_area) OVER ( ORDER BY t1.year) - t1.sum_area) diff_area, 
+100*( (LAG(t1.sum_area) OVER ( ORDER BY t1.year) - t1.sum_area)/LAG(t1.sum_area) OVER ( ORDER BY t1.year)) per_change
+
+FROM (SELECT SUM(forest_area_sqkm) sum_area, year
+FROM forestation
+WHERE year = 1990 OR year = 2016
+GROUP BY 2
+ORDER BY year) t1 
+
 -- e. If you compare the amount of forest area lost between 1990 and 2016, to which country's total area in 2016 is it closest to?
 
 SELECT country_name, year, forest_area_sqkm
@@ -101,17 +111,19 @@ ORDER BY 1
 
 SELECT 100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) sum_percent, region, year
 FROM forestation
-WHERE year = 1990 OR year = 2016
+WHERE year = 2016
 GROUP BY 2 , 3
 ORDER BY 1 DESC
+LIMIT 1
 
 
 -- and which had the LOWEST, to 2 decimal places?
 -- answer:2.06826486871501	Middle East & North Africa
 
-SELECT CAST((forest_percent) as DECIMAL(10,2)), region
+SELECT CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, region, year
 FROM forestation
 WHERE year = 2016
+GROUP BY 2 , 3
 ORDER BY 1 
 LIMIT 1
 
@@ -129,37 +141,105 @@ ORDER BY 1
 -- Which region had the HIGHEST percent forest in 1990, 
 -- answer: 51.0299798667514	Latin America & Caribbean
 
--- and which had the LOWEST, to 2 decimal places?
--- answer: 1.77524062469353	Middle East & North Africa
-SELECT CAST((forest_percent) as DECIMAL(10,2)), region
+SELECT CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, region, year
 FROM forestation
 WHERE year = 1990
-ORDER BY 1 
-LIMIT 1
-
-SELECT 100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) sum_percent, region, year
-FROM forestation
-WHERE year = 1990 OR year = 2016
 GROUP BY 2 , 3
 ORDER BY 1 DESC
+LIMIT 1
+
+-- and which had the LOWEST, to 2 decimal places?
+-- answer: 1.77524062469353	Middle East & North Africa
+
+SELECT CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, region, year
+FROM forestation
+WHERE year = 1990
+GROUP BY 2 , 3
+ORDER BY 1 
+LIMIT 1
 
 
 -- c. Based on the table you created, which regions of the world DECREASED in forest area from 1990 to 2016?
 
 
-WITH t90 AS (SELECT 100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) sum_percent, region, year
+WITH t90 AS (SELECT SUM(forest_area_sqkm) fa_sum, CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, region, year
 FROM forestation
 WHERE year = 1990
-GROUP BY 2 , 3
+GROUP BY 3 , 4
 ORDER BY 1 ),
-t16 AS (SELECT 100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) sum_percent, region, year
+
+t16 AS (SELECT SUM(forest_area_sqkm) fa_sum, CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, region, year
 FROM forestation
 WHERE year = 2016
-GROUP BY 2 , 3
+GROUP BY 3 , 4
 ORDER BY 1 )
 
-SELECT t16.sum_percent p_sum_2016,	t16.region region_2016,	t16.year year_2016, t90.sum_percent p_sum_1990,	t90.year year_1990
+SELECT t16.region region, t16.fa_sum fa_sum_16, t16.sum_percent fa_percent_16, t90.fa_sum fa_sum_1990,	t90.sum_percent fa_percent_90, (t90.fa_sum - t16.fa_sum) diff_FA
 FROM t90
-LEFT JOIN t16 
-ON t16.region = t16.region
+JOIN t16 
+ON t16.region = t90.region
+WHERE (t90.fa_sum - t16.fa_sum) > 0
+ORDER BY diff_FA
+
+-- 3. COUNTRY-LEVEL DETAIL
+-- Instructions:
+
+-- Answering these questions will help you add information into the template.
+-- Use these questions as guides to write SQL queries.
+-- Use the output from the query to answer these questions.
+
+-- a. Which 5 countries saw the largest amount decrease in forest area from 1990 to 2016? 
+-- What was the difference in forest area for each?
+
+WITH t90 AS (SELECT SUM(forest_area_sqkm) fa_sum, CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, country_name, year
+FROM forestation
+WHERE year = 1990
+GROUP BY 3 , 4
+ORDER BY 1 ),
+
+t16 AS (SELECT SUM(forest_area_sqkm) fa_sum, CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, country_name, year
+FROM forestation
+WHERE year = 2016
+GROUP BY 3 , 4
+ORDER BY 1 )
+
+SELECT t16.country_name country_name, t16.fa_sum fa_sum_16, t16.sum_percent fa_percent_16, t90.fa_sum fa_sum_1990,	t90.sum_percent fa_percent_90, (t90.fa_sum - t16.fa_sum) diff_FA, t16.fa_sum/t90.fa_sum ratio_inc
+FROM t90
+JOIN t16 
+ON t16.country_name = t90.country_name
+WHERE (t90.fa_sum - t16.fa_sum) > 0
+ORDER BY diff_FA DESC
+LIMIT 6
+
+-- b. Which 5 countries saw the largest percent decrease in forest area from 1990 to 2016? 
+-- What was the percent change to 2 decimal places for each?
+
+WITH t90 AS (SELECT SUM(forest_area_sqkm) fa_sum, CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, country_name, region, year
+FROM forestation
+WHERE year = 1990
+GROUP BY 3 , 4, 5
+ORDER BY 1 ),
+
+t16 AS (SELECT SUM(forest_area_sqkm) fa_sum, CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, country_name, region, year
+FROM forestation
+WHERE year = 2016
+GROUP BY 3 , 4 ,5
+ORDER BY 1 )
+
+SELECT t16.region region, t16.country_name country_name, t16.fa_sum fa_sum_16, t16.sum_percent fa_percent_16, t90.fa_sum fa_sum_1990,	t90.sum_percent fa_percent_90, (t90.fa_sum - t16.fa_sum) diff_FA, CAST(100*(1 - t16.fa_sum/t90.fa_sum) AS DECIMAL(10,2)) ratio_inc
+FROM t90
+JOIN t16 
+ON t16.country_name = t90.country_name
+WHERE (t90.fa_sum - t16.fa_sum) > 0
+ORDER BY ratio_inc DESC
+LIMIT 5
+
+
+
+-- c. If countries were grouped by percent forestation in quartiles, which group had the most countries in it in 2016?
+
+-- d. List all of the countries that were in the 4th quartile (percent forest > 75%) in 2016.
+
+-- e. How many countries had a percent forestation higher than the United States in 2016?
+
 
