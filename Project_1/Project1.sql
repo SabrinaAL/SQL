@@ -107,9 +107,19 @@ ORDER BY 1
 LIMIT 1
 
 
-
-
 -- b. What was the percent forest of the entire world in 1990? 
--- Which region had the HIGHEST percent forest in 1990, and which had the LOWEST, to 2 decimal places?
+
+-- Which region had the HIGHEST percent forest in 1990, 
+-- answer: 98.91	Latin America & Caribbean
+
+-- and which had the LOWEST, to 2 decimal places?
+-- answer: 0.00	Europe & Central Asia
+SELECT CAST((forest_percent) as DECIMAL(10,2)), region
+FROM forestation
+WHERE year = 1990
+ORDER BY 1 
+LIMIT 1
+
+
 
 -- c. Based on the table you created, which regions of the world DECREASED in forest area from 1990 to 2016?
