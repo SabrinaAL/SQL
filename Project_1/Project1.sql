@@ -234,12 +234,46 @@ WHERE (t90.fa_sum - t16.fa_sum) > 0
 ORDER BY ratio_inc DESC
 LIMIT 5
 
-
-
 -- c. If countries were grouped by percent forestation in quartiles, which group had the most countries in it in 2016?
+
+WITH t1 AS (SELECT 
+CASE 
+WHEN forest_percent > 75 THEN 4
+WHEN forest_percent <= 75 AND forest_percent > 50 THEN 3
+WHEN forest_percent <= 50 AND forest_percent > 25 THEN 2
+WHEN forest_percent <= 25 THEN 1 END percent_group, year, forest_percent, country_name
+FROM forestation)
+
+SELECT t1.percent_group, COUNT(t1.percent_group) num_group
+FROM t1
+WHERE t1.year = 2016
+GROUP BY 1
 
 -- d. List all of the countries that were in the 4th quartile (percent forest > 75%) in 2016.
 
+WITH t1 AS (SELECT 
+CASE 
+WHEN forest_percent > 75 THEN 4
+WHEN forest_percent <= 75 AND forest_percent > 50 THEN 3
+WHEN forest_percent <= 50 AND forest_percent > 25 THEN 2
+WHEN forest_percent <= 25 THEN 1 END percent_group, year, forest_percent, country_name, region
+FROM forestation)
+
+SELECT t1.percent_group, t1.region, t1.country_name, t1.forest_percent
+FROM t1
+WHERE t1.year = 2016 AND t1.percent_group = 4
+ORDER BY 4 DESC
+
+
 -- e. How many countries had a percent forestation higher than the United States in 2016?
+-- answer: 94
+SELECT COUNT(*)
+FROM forestation
+WHERE year = 2016 AND forest_percent > 
+(SELECT forest_percent
+FROM forestation
+WHERE country_name = 'United States' AND year = 2016)
+
+
 
 
