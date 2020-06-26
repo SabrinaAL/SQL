@@ -16,7 +16,7 @@ CREATE VIEW forestation AS (SELECT f.country_code,	f.country_name,	f.year,	f.for
   JOIN land_area l
   ON f.year = l.year AND f.country_code = l.country_code
   JOIN regions r
-  ON r.country_code = l.country_code)
+  ON r.country_code = l.country_code);
 
 
 -- 1. GLOBAL SITUATION
@@ -29,10 +29,6 @@ CREATE VIEW forestation AS (SELECT f.country_code,	f.country_name,	f.year,	f.for
 -- a. What was the total forest area (in sq km) of the world in 1990? Please keep in mind that you can use the country record denoted as “World" in the region table.
 -- answer: 82016472.036028
 
-SELECT SUM(forest_area_sqkm) sum_area_1990
-FROM forest_area
-WHERE year = 1990
-GROUP BY year
 
 SELECT SUM(forest_area_sqkm) sum_area_1990
 FROM forestation
@@ -188,7 +184,7 @@ ORDER BY diff_FA
 -- Use these questions as guides to write SQL queries.
 -- Use the output from the query to answer these questions.
 
--- a. Which 5 countries saw the largest amount decrease in forest area from 1990 to 2016? 
+-- a. Which 5 countries saw the largest amount increase in forest area from 1990 to 2016? 
 -- What was the difference in forest area for each?
 
 WITH t90 AS (SELECT SUM(forest_area_sqkm) fa_sum, CAST(100*(SUM(forest_area_sqkm)/(SUM(total_area_sq_mi*2.59))) as DECIMAL(10,2)) sum_percent, country_name, year
@@ -203,11 +199,11 @@ WHERE year = 2016
 GROUP BY 3 , 4
 ORDER BY 1 )
 
-SELECT t16.country_name country_name, t16.fa_sum fa_sum_16, t16.sum_percent fa_percent_16, t90.fa_sum fa_sum_1990,	t90.sum_percent fa_percent_90, (t90.fa_sum - t16.fa_sum) diff_FA, t16.fa_sum/t90.fa_sum ratio_inc
+SELECT t16.country_name country_name, t16.fa_sum fa_sum_16, t16.sum_percent fa_percent_16, t90.fa_sum fa_sum_1990,	t90.sum_percent fa_percent_90, -(t90.fa_sum - t16.fa_sum) diff_FA, t16.fa_sum/t90.fa_sum ratio_inc
 FROM t90
 JOIN t16 
 ON t16.country_name = t90.country_name
-WHERE (t90.fa_sum - t16.fa_sum) > 0
+WHERE (t90.fa_sum - t16.fa_sum) < 0
 ORDER BY diff_FA DESC
 LIMIT 6
 
@@ -259,10 +255,10 @@ WHEN forest_percent <= 50 AND forest_percent > 25 THEN 2
 WHEN forest_percent <= 25 THEN 1 END percent_group, year, forest_percent, country_name, region
 FROM forestation)
 
-SELECT t1.percent_group, t1.region, t1.country_name, t1.forest_percent
+SELECT t1.country_name, t1.region,  t1.forest_percent
 FROM t1
 WHERE t1.year = 2016 AND t1.percent_group = 4
-ORDER BY 4 DESC
+ORDER BY 3 DESC
 
 
 -- e. How many countries had a percent forestation higher than the United States in 2016?
@@ -275,5 +271,26 @@ FROM forestation
 WHERE country_name = 'United States' AND year = 2016)
 
 
+-- Some additional SQL Queries 
+
+
+
+WITH t16 AS(SELECT SUM(forest_area_sqkm) fa_sum, country_name, year, income_group
+FROM forestation
+WHERE (year = 2016) AND region = 'Sub-Saharan Africa'
+GROUP BY 2 , 3 ,4
+ORDER BY year DESC),
+
+t90 AS(SELECT SUM(forest_area_sqkm) fa_sum, country_name, year, income_group
+FROM forestation
+WHERE (year = 1990) AND region = 'Sub-Saharan Africa'
+GROUP BY 2 , 3 ,4
+ORDER BY year DESC)
+
+SELECT (t90.fa_sum - t16.fa_sum) abs_difference, t16.country_name, t16.income_group income_in_2016, t90.income_group income_in_1990
+FROM t16
+JOIN t90
+ON t16.country_name = t90.country_name
+ORDER BY 1 DESC
 
 
