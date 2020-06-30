@@ -6,28 +6,29 @@
 -- The ability to store room reservations: we need to know which guest reserved which room, and during what period.
 
 
-
-CREATE TABLE "user_info" (
-    "id" SERIAL,
-  "first name" TEXT,
-  "last name" TEXT,
-    "phone_num" TEXT,
-    "email" TEXT
-    
+CREATE TABLE "customers" (
+  "id" SERIAL,
+  "first_name" VARCHAR,
+  "last_name" VARCHAR,
+  "phone_number" VARCHAR
 );
 
-
-CREATE TABLE "hotel_info" (
-    "Room_id" SERIAL,
-  "Room_num" VARCHAR(2),
-    "Floor_num" VARCHAR(2),
-    "Area_sqft" INTEGER
+CREATE TABLE "customer_emails" (
+  "customer_id" INTEGER,
+  "email_address" VARCHAR
 );
 
+CREATE TABLE "rooms" (
+  "id" SERIAL,
+  "floor" SMALLINT,
+  "room_no" SMALLINT,
+  "area_sqft" SMALLINT
+);
 
-CREATE TABLE "reservation" (
-  "id" INTEGER,
-    "Room_id" INTEGER,
-    "Reverve_time" TIME
-
+CREATE TABLE "reservations" (
+  "id" SERIAL,
+  "customer_id" INTEGER,
+  "room_id" INTEGER,
+  "check_in" DATE,
+  "check_out" DATE
 );
