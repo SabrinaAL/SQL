@@ -269,3 +269,119 @@ ALTER TABLE "books" ADD CHECK (
 
 -- A user's book preferences have to be distinct
 ALTER TABLE "user_book_preferences" ADD UNIQUE ("user_id", "preference");
+
+
+-- Exercise Instructions¶
+-- For this exercise, you're being asked to modify the table structure provided in order to answer some business requirements. The tables books, authors, and book_authors have had their columns setup, but no constraints nor indexes have been added.
+
+-- Given the business requirements below, add the necessary constraints and indexes to support each use-case:
+
+-- We need to be able to quickly find books and authors by their IDs.
+-- We need to be able to quickly tell which books an author has written.
+-- We need to be able to quickly find a book by its ISBN #.
+-- We need to be able to quickly search for books by their titles in a case-insensitive way, even if the title is partial. For example, searching for "the" should return "The Lord of the Rings".
+-- For a given book, we need to be able to quickly find all the topics associated to it.
+-- For a given topic, we need to be able to quickly find all the books tagged with it.
+
+
+-- Constraints
+ALTER TABLE "authors"
+  ADD PRIMARY KEY ("id");
+
+ALTER TABLE "topics"
+  ADD PRIMARY KEY("id"),
+  ADD UNIQUE ("name"),
+  ALTER COLUMN "name" SET NOT NULL;
+
+ALTER TABLE "books"
+  ADD PRIMARY KEY ("id"),
+  ADD UNIQUE ("isbn"),
+  ADD FOREIGN KEY ("author_id") REFERENCES "authors" ("id");
+
+ALTER TABLE "book_topics"
+  ADD PRIMARY KEY ("book_id", "topic_id");
+-- or ("topic_id", "book_id") instead...?
+
+-- We need to be able to quickly find books and authors by their IDs.
+-- Already taken care of by primary keys
+
+-- We need to be able to quickly tell which books an author has written.
+CREATE INDEX "find_books_by_author" ON "books" ("author_id");
+
+-- We need to be able to quickly find a book by its ISBN #.
+-- The unique constraint on ISBN already takes care of that 
+--   by adding a unique index
+
+-- We need to be able to quickly search for books by their titles
+--   in a case-insensitive way, even if the title is partial. For example, 
+--   searching for "the" should return "The Lord of the rings".
+CREATE INDEX "find_books_by_partial_title" ON "books" (
+  LOWER("title") VARCHAR_PATTERN_OPS
+);
+
+-- For a given book, we need to be able to quickly find all the topics 
+--   associated with it.
+-- The primary key on the book_topics table already takes care of that 
+--   since there's an underlying unique index
+
+-- For a given topic, we need to be able to quickly find all the books 
+--   tagged with it.
+CREATE INDEX "find_books_by_topic" ON "book_topics" ("topic_id");
+
+
+-- Exercise Instructions¶
+-- In this exercise, you'll get to review many of the new skills you've developed with relational databases! You're being tasked with creating a database of movies with the following specification:
+
+-- A movie has a title and a description, and zero or more categories associated to it.
+-- A category is just a name, but that name has to be unique
+-- Users can register to the system to rate movies:
+-- A user's username has to be unique in a case-insensitive way. For instance, if a user registers with the username "Bob", then nobody can register with "bob" nor "BOB"
+-- A user can only rate a movie once, and the rating is an integer between 0 and 100, inclusive
+-- In addition to rating movies, users can also "like" categories.
+-- The following queries need to execute quickly and efficiently. The database will contain ~6 million movies:
+-- Finding a movie by partially searching its name
+-- Finding a user by their username
+-- For a given user, find all the categories they like and movies they rated
+-- For a given movie, find all the users who rated it
+-- For a given category, find all the users who like it
+-- NOTE: Unless you populate your database with millions of rows of realistic data, you won't be able to use EXPLAIN for this exercise.
+
+CREATE TABLE "movies" (
+  "id" SERIAL PRIMARY KEY,
+  "title" VARCHAR(500), --  Night of the Day of the Dawn of the Son of the Bride of the Return of the Revenge of the Terror of the Attack of the Evil, Mutant, Hellbound, Flesh-Eating Subhumanoid Zombified Living Dead, Part 3
+  "description" TEXT
+);
+
+
+CREATE TABLE "categories" (
+  "id" SERIAL PRIMARY KEY,
+  "name" VARCHAR(50) UNIQUE
+);
+
+CREATE TABLE "movie_categories" (
+  "movie_id" INTEGER REFERENCES "movies",
+  "category_id" INTEGER REFERENCES "categories",
+  PRIMARY KEY ("movie_id", "category_id")
+);
+
+CREATE TABLE "users" (
+  "id" SERIAL PRIMARY KEY,
+  "username" VARCHAR(100),
+);
+CREATE UNIQUE INDEX ON "users" (LOWER("username"));
+
+CREATE TABLE "user_movie_ratings" (
+  "user_id" INTEGER REFERENCES "users",
+  "movie_id" INTEGER REFERENCES "movies",
+  "rating" SMALLINT CHECK ("rating" BETWEEN 0 AND 100),
+  PRIMARY KEY ("user_id", "movie_id")
+);
+CREATE INDEX ON "user_movie_ratings" ("movie_id");
+
+CREATE TABLE "user_category_likes" (
+  "user_id" INTEGER REFERENCES "users",
+  "category_id" INTEGER REFERENCES "categories",
+  PRIMARY KEY ("user_id", "category_id")
+);
+CREATE INDEX ON "user_category_likes" ("category_id");
+
