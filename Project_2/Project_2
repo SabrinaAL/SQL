@@ -1,0 +1,156 @@
+CREATE TABLE "users" (
+  "id" SERIAL PRIMARY KEY,
+  "username" VARCHAR(25) UNIQUE NOT NULL,
+    "login_date" DATE 
+);
+
+
+CREATE TABLE "topic" (
+  "id" SERIAL PRIMARY KEY,
+  "topic_name" VARCHAR(30) UNIQUE NOT NULL, 
+  "description" VARCHAR(500)
+);
+
+
+CREATE TABLE "post" (
+  "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER  CONSTRAINT "valid_post_on_user" REFERENCES "users" ("id") ON DELETE SET NULL,
+    "topic_id" INTEGER CONSTRAINT "valid_post_on_topic" REFERENCES "topic" ("id") ON DELETE CASCADE ,
+    "title" VARCHAR(100),
+    "content" VARCHAR  CONSTRAINT "valid_post_content" CHECK ("content"  LIKE 'http%' OR "content" IS NOT NULL)
+);
+
+CREATE TABLE "comment" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER,
+    "post_id" INTEGER ,
+    "thread_id" INTEGER,
+    "comment_content" VARCHAR(5000) NOT NULL,
+    "comment_date" DATE
+
+);
+
+
+ALTER TABLE "comment"
+  ADD CONSTRAINT "valid_postID_on_post" 
+  FOREIGN KEY ("post_id") REFERENCES "post" ("id") ON DELETE CASCADE, 
+  
+  ADD CONSTRAINT "valid_postID_on_user" 
+  FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL,
+  
+  ADD CONSTRAINT "valid_threadID_on_post" 
+  FOREIGN KEY ("thread_id") REFERENCES "comment" ("id") ON DELETE CASCADE;
+  
+  
+CREATE TABLE "votes" (
+    "post_id" INTEGER REFERENCES "post" ("id") ON DELETE CASCADE ,
+    "user_id" INTEGER REFERENCES "users" ("id") ON DELETE SET NULL, 
+    "vote" SMALLINT NOT NULL CHECK ("vote" = -1 OR "vote" = 1) ,
+    PRIMARY KEY("user_id", "post_id")
+);
+
+
+
+CREATE INDEX "find_no_logged" ON "users" ("login_date");
+CREATE INDEX "no_topic" ON "topic" ("user_id");
+CREATE INDEX "no_post" ON "post" ("topic_id");
+CREATE INDEX "find_user" ON "users" ("username");
+CREATE INDEX "find_topic" ON "topic" ("topic_name");
+
+CREATE INDEX "url_posts" ON "post" ("content" );
+CREATE INDEX "find_comment_thread" ON "comment" ("thread_id", "post_id" );
+
+CREATE INDEX "votes_score" ON "votes" ("vote");
+
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+INSERT INTO "users" ("username")
+  SELECT DISTINCT(username) 
+  FROM "bad_posts"
+  
+  UNION 
+  
+  SELECT DISTINCT(username)  
+  FROM "bad_comments"
+  
+  UNION 
+    
+  SELECT REGEXP_SPLIT_TO_TABLE(bad_posts.upvotes, ',')   
+  FROM "bad_posts"
+  
+  UNION
+    
+  SELECT REGEXP_SPLIT_TO_TABLE(bad_posts.downvotes, ',')
+  FROM "bad_posts"
+
+  ORDER BY 1 DESC;
+  
+INSERT INTO "topic" ("topic_name")
+  SELECT DISTINCT("topic")  FROM "bad_posts"
+  JOIN "users"
+  ON users.username = bad_posts.username;
+  
+  
+  
+INSERT INTO "post" ("user_id", "topic_id", "title", "content")
+
+  SELECT users.id ,  topic.id , LEFT(bad_posts.title, 100) , 
+  CASE WHEN bad_posts.text_content IS NULL THEN bad_posts.url
+       WHEN bad_posts.url IS NULL THEN bad_posts.text_content END 
+  FROM "bad_posts"
+  JOIN "users"
+  ON bad_posts.username = users.username
+  JOIN "topic"
+  ON bad_posts.topic = topic.topic_name
+  WHERE bad_posts.text_content IS NOT NULL OR bad_posts.url IS NOT NULL;
+
+  
+  
+INSERT INTO "comment" ("user_id", "post_id", "comment_content")
+  
+  SELECT users.id, post.id, bad_comments.text_content FROM   bad_posts
+  JOIN bad_comments
+  ON bad_posts.id = bad_comments.post_id
+  JOIN users
+  ON bad_comments.username = users.username
+  JOIN post
+  ON post.title = LEFT(bad_posts.title, 100)
+  ORDER BY 1;
+  
+  
+  
+  
+  
+INSERT INTO "votes" ("post_id", "user_id", "vote")
+
+
+
+    WITH t1 AS(
+      SELECT REGEXP_SPLIT_TO_TABLE(bad_posts.upvotes, ',') upvotes, REGEXP_SPLIT_TO_TABLE(bad_posts.downvotes, ',') downvotes, post.id post_id, bad_posts.username username
+      FROM "bad_posts"
+      JOIN post
+      ON post.title = LEFT(bad_posts.title, 100))
+
+    SELECT t1.post_id, users.id,  1 AS vote
+    FROM t1
+    JOIN users
+    ON users.username = t1.upvotes 
+
+    UNION
+
+    SELECT  t1.post_id, users.id, -1 AS vote
+    FROM t1
+    JOIN users
+    ON users.username = t1.downvotes
+
+    ORDER BY 1;
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+
+DROP TABLE "users", "topic", "post", "comment",  "votes" CASCADE ;  
+
